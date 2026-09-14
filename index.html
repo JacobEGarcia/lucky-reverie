@@ -814,6 +814,19 @@ function draw(){
             ctx.beginPath(); ctx.ellipse(dx,dy,1,1.4+u*1.4,0,0,7); ctx.fill();
             if(u<.12){ ctx.fillStyle='rgba(230,240,248,'+(da*.8).toFixed(3)+')'; ctx.fillRect(dx-.6,ey+.4,1.2,1.4); } } } } } // the bead still on the lip
       ctx.fillStyle=_CSS(_MIX([31,23,16],[58,40,28],dk)); // hand the next house its own color back
+    if(norenPair(b)){ const ang=(S.gust||0)*(.5+.3*Math.sin(S.t*1.1+b.x))+.06*Math.sin(S.t*1.7+b.x); // the chime answers the same gusts as the curtain below
+      const nr2=mulberry32((seedNum^0x7b2d)+Math.round(b.x)); const frx=rx+b.w*(.3+nr2()*.4), fry=groundY()-b.h+2, lit=(1-Math.cos(2*Math.PI*MP))/2; // hung from the eave above the doorway
+      ctx.strokeStyle=_CSS(_MIX([60,50,36],[84,70,50],dk)); ctx.lineWidth=.8;
+      ctx.beginPath(); ctx.moveTo(frx,fry); ctx.lineTo(frx+Math.sin(ang)*7,fry+Math.cos(ang)*7); ctx.stroke(); // the cord
+      const bx3=frx+Math.sin(ang)*7, by3=fry+Math.cos(ang)*7;
+      ctx.fillStyle='rgba(190,220,214,'+(.3+.1*lit).toFixed(3)+')'; ctx.beginPath(); ctx.arc(bx3,by3+3.4,3.4,0,7); ctx.fill(); // the glass bell
+      ctx.strokeStyle='rgba(240,246,244,'+(.4+.2*lit).toFixed(3)+')'; ctx.lineWidth=.8;
+      ctx.beginPath(); ctx.arc(bx3,by3+3.4,3.4,-2.4,-1.2); ctx.stroke(); // its lit shoulder
+      const ang2=ang*1.8+.12*Math.sin(S.t*2.6+b.x); // the paper strip lags and flares wider
+      const tx2=bx3+Math.sin(ang2)*9, ty2=by3+3.4+Math.cos(ang2)*9;
+      ctx.strokeStyle='rgba(243,234,216,.85)'; ctx.lineWidth=2.2;
+      ctx.beginPath(); ctx.moveTo(bx3,by3+4.4); ctx.lineTo(tx2,ty2); ctx.stroke();
+      ctx.fillStyle=_CSS(_MIX([31,23,16],[58,40,28],dk)); } // hand the next house its own color back
   } // (midline loop close)
  // the frame, and one mullion
   // haza - rice sheaves drying on racks along the far roofs, gold-rimmed on harvest-moon nights
