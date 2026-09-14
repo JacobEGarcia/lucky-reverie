@@ -240,6 +240,10 @@ const kaneOn=qs.get('kane')!=null?+qs.get('kane')>0:(today.getMonth()===11&&toda
 const kanePin=qs.get('kaneage')!=null?parseFloat(qs.get('kaneage')):-1; // QA: pin the ring's age
 // hatsu-hinode - the first sunrise; on January 1 the year's first sun rises red through the gold
 const hinodeOn=qs.get('hinode')!=null?+qs.get('hinode')>0:(today.getMonth()===0&&today.getDate()===1);
+// the distant temple stair - on winter full-moon nights, a hillside of steps and lanterns under the bright moon
+const stairPin=qs.get('stair')!=null?+qs.get('stair')>0:null; // QA: force on/off
+const stairOn=stairPin!==null?stairPin:(season==='winter'&&fullK>.55);
+const stairX=900+Math.floor(mulberry32(seedNum^0x3a11)()*3000);
 // hatsushimo - first frost silvers the far rooflines on cold November dawns, and melts as the sun climbs
 const frostPin=qs.get('frost')!=null?+qs.get('frost')>0:null; // QA: force on/off
 const frostOn=frostPin!==null?frostPin:(today.getMonth()===10&&mulberry32(seedNum^0xf207)()<.55);
@@ -720,6 +724,26 @@ function draw(){
       if(kAge>=0&&kAge<3.2){ const kk=kAge/3.2, ra=(1-kk)*.3*(1-dk*.4);
         if(ra>.01){ ctx.strokeStyle='rgba(214,164,64,'+ra.toFixed(3)+')'; ctx.lineWidth=1.4;
           ctx.beginPath(); ctx.arc(tx,gy-th+4,5+kk*54,0,7); ctx.stroke(); } } } }
+  // the distant temple stair - winter full-moon nights; lanterns mark the climb to a small hall on the hill
+  if(stairOn){ const sx0=((stairX-S.camX*.35)%(W+500)+(W+250))%(W+500)-250, gy=groundY();
+    if(sx0>-100&&sx0<W+100){ const na=(1-dk*.92)*Math.max(.35,fullK);
+      const sil=_CSS(_MIX([23,18,12],[47,33,23],dk));
+      ctx.fillStyle=sil;
+      ctx.beginPath(); ctx.moveTo(sx0-64,gy); ctx.lineTo(sx0+10,gy-95); ctx.lineTo(sx0+58,gy); ctx.closePath(); ctx.fill(); // the hillside rising behind the roofs
+      ctx.strokeStyle='rgba(224,232,244,'+(.22*na).toFixed(3)+')'; ctx.lineWidth=1.2; // the stair, pale under the moon
+      ctx.beginPath(); ctx.moveTo(sx0-52,gy-1); ctx.lineTo(sx0+2,gy-93); ctx.stroke();
+      for(let i=0;i<11;i++){ const px=sx0-52+i*4.9, py=gy-1-i*8.4;
+        ctx.beginPath(); ctx.moveTo(px-2,py); ctx.lineTo(px+2,py); ctx.stroke(); } // the steps
+      ctx.fillStyle=sil;
+      ctx.fillRect(sx0+1,gy-104,18,10); // the hall at the top
+      ctx.beginPath(); ctx.moveTo(sx0-3,gy-104); ctx.lineTo(sx0+10,gy-113); ctx.lineTo(sx0+23,gy-104); ctx.closePath(); ctx.fill(); // its roof
+      ctx.fillStyle=snowTint(dk); ctx.beginPath(); ctx.moveTo(sx0+3,gy-109); ctx.lineTo(sx0+10,gy-113); ctx.lineTo(sx0+17,gy-109); ctx.closePath(); ctx.fill(); // winter snow on the ridge
+      ctx.strokeStyle='rgba(224,232,244,'+(.3*na).toFixed(3)+')'; ctx.lineWidth=1; // moonlight on the roof's edge
+      ctx.beginPath(); ctx.moveTo(sx0+10,gy-113); ctx.lineTo(sx0+23,gy-104); ctx.stroke();
+      for(let i=0;i<4;i++){ const t=.2+i*.24, lx=sx0-52+54*t, ly=gy-1-92*t, la=(.55+.45*Math.sin(S.t*2.3+i*2.1))*na; // the lanterns along the climb
+        ctx.fillStyle='rgba(233,190,100,'+(.7*la).toFixed(3)+')'; ctx.beginPath(); ctx.arc(lx,ly,1.2,0,7); ctx.fill();
+        ctx.fillStyle='rgba(233,190,100,'+(.16*la).toFixed(3)+')'; ctx.beginPath(); ctx.arc(lx,ly,3.4,0,7); ctx.fill(); }
+      ctx.fillStyle=_CSS(_MIX([26,20,13],[52,36,26],dk)); } } // hand the skyline its color back
   // kitsune no yomeiri - a moonshower drizzle, and far between the houses a line of lanterns walks the night
   { const wAge=wedPin>=0?wedPin:(wedOn&&S.wedT>=0?S.t-S.wedT:-1);
     if(wedOn&&wAge>=0&&wAge<16){ const k=wAge/16, wa=(1-dk*.5)*Math.min(1,k*6)*Math.min(1,(1-k)*6);
@@ -1532,7 +1556,7 @@ if(qs.get('qa')){
   if(qs.get('gate40')){ gates.push({x:S.camX+cat.x+(+(qs.get('gd')||180)), n:4000, hit:false}); for(let i=0;i<60;i++) update(1/60); }
   if(qs.get('tem')){ const r=18, off=parseFloat(qs.get('tem'))||460; obstacles.push({x:S.camX+cat.x+off, temari:true, r, w:r*2, h:r*2, roll:80, bps:1.05, ph:parseFloat(qs.get('tph'))||.4, cy:groundY()-r, rollA:0, near:false, passed:false});
     for(let i=0;i<26;i++) update(1/60); }
-  if(qs.get('probe')) document.title='PROBE '+JSON.stringify({mode:S.mode,dist:Math.round(S.dist),coins:S.coins,bonus:S.bonus,bells:S.bells||0,combo:coinCombo,charm:S.charm?1:0,charmUsed:S.charmUsed||0,star:starPin>=0?starPin:(S.starT>=0?+(S.t-S.starT).toFixed(2):-1),breath:(season==='winter'&&S.mode!=='start')?+(breathPin>=0?breathPin:(S.t%3.4)).toFixed(2):-1,bird:birdPin>=0?birdPin:(S.birdT>=0?+(S.t-S.birdT).toFixed(2):-1),dawn:+dawnK().toFixed(2),complete:S.complete?1:0,moon:+MP.toFixed(3),full:+fullK.toFixed(2),gust:+(S.gust||0).toFixed(2),constel:conOn?1:0,train:trainPin>=0?(trainPin<0?-1:trainPin):(S.trainT>=0?+(S.t-S.trainT).toFixed(2):-1),matsuri:matsuriOn?1:0,cho:midline.filter(choPair).length,mist:mistOn?1:0,hanabi:(S.hanabi||[]).length,shide:shideOn?1:0,kitsune:kitsuOn?1:0,geese:geesePin>=0?geesePin:(S.geeseT>=0?+(S.t-S.geeseT).toFixed(2):-1),kami:kamiPin>=0?kamiPin:(S.kamiT>=0?+(S.t-S.kamiT).toFixed(2):-1),fire:fireflies.length,prints:prints.length,jizo:jizoList.length,owl:owlList.filter(o=>o.fly<0).length,wed:wedOn?(wedPin>=0?wedPin:(S.wedT>=0?+(S.t-S.wedT).toFixed(2):-1)):0,haza:hazaOn?1:0,kaka:kakaOn?1:0,ksnow:ksnowOn?1:0,toshi:toshiOn?1:0,sp:(spPin!==null?spPin:(kakaOn&&dawnK()>.75))?(spFlyPin>=0?0:(S.spT<0?3:0)):0,frost:frostOn?1:0,kaza:kazaOn?+(S.kazaA||0).toFixed(1):-1,hoshi:midline.filter(hoshiPair).length,steam:midline.filter(steamPair).length,lone:loneOn?1:0,gink:ginkOn?1:0,asa:asaOn?1:0,noren:midline.filter(norenPair).length,drip:dripOn?1:0,bath:bathOn?(S.bathT<0?(season==='winter'&&dawnK()>.45?1:3):0):0,hazax:(hazaOn&&window.__hazaX!=null)?Math.round(window.__hazaX):-1,kane:kaneOn?(S.kaneN||0):-1,hinode:hinodeOn?1:0,darTum:(S.darTum||0),darDev:(()=>{const d=obstacles.find(o=>o.daruma&&o.tumble!==undefined); return d?+d.dev.toFixed(2):-1;})(),err:window.__err||''});
+  if(qs.get('probe')) document.title='PROBE '+JSON.stringify({mode:S.mode,dist:Math.round(S.dist),coins:S.coins,bonus:S.bonus,bells:S.bells||0,combo:coinCombo,charm:S.charm?1:0,charmUsed:S.charmUsed||0,star:starPin>=0?starPin:(S.starT>=0?+(S.t-S.starT).toFixed(2):-1),breath:(season==='winter'&&S.mode!=='start')?+(breathPin>=0?breathPin:(S.t%3.4)).toFixed(2):-1,bird:birdPin>=0?birdPin:(S.birdT>=0?+(S.t-S.birdT).toFixed(2):-1),dawn:+dawnK().toFixed(2),complete:S.complete?1:0,moon:+MP.toFixed(3),full:+fullK.toFixed(2),gust:+(S.gust||0).toFixed(2),constel:conOn?1:0,train:trainPin>=0?(trainPin<0?-1:trainPin):(S.trainT>=0?+(S.t-S.trainT).toFixed(2):-1),matsuri:matsuriOn?1:0,cho:midline.filter(choPair).length,mist:mistOn?1:0,hanabi:(S.hanabi||[]).length,shide:shideOn?1:0,kitsune:kitsuOn?1:0,geese:geesePin>=0?geesePin:(S.geeseT>=0?+(S.t-S.geeseT).toFixed(2):-1),kami:kamiPin>=0?kamiPin:(S.kamiT>=0?+(S.t-S.kamiT).toFixed(2):-1),fire:fireflies.length,prints:prints.length,jizo:jizoList.length,owl:owlList.filter(o=>o.fly<0).length,wed:wedOn?(wedPin>=0?wedPin:(S.wedT>=0?+(S.t-S.wedT).toFixed(2):-1)):0,haza:hazaOn?1:0,kaka:kakaOn?1:0,ksnow:ksnowOn?1:0,toshi:toshiOn?1:0,stair:stairOn?1:0,sp:(spPin!==null?spPin:(kakaOn&&dawnK()>.75))?(spFlyPin>=0?0:(S.spT<0?3:0)):0,frost:frostOn?1:0,kaza:kazaOn?+(S.kazaA||0).toFixed(1):-1,hoshi:midline.filter(hoshiPair).length,steam:midline.filter(steamPair).length,lone:loneOn?1:0,gink:ginkOn?1:0,asa:asaOn?1:0,noren:midline.filter(norenPair).length,drip:dripOn?1:0,bath:bathOn?(S.bathT<0?(season==='winter'&&dawnK()>.45?1:3):0):0,hazax:(hazaOn&&window.__hazaX!=null)?Math.round(window.__hazaX):-1,kane:kaneOn?(S.kaneN||0):-1,hinode:hinodeOn?1:0,darTum:(S.darTum||0),darDev:(()=>{const d=obstacles.find(o=>o.daruma&&o.tumble!==undefined); return d?+d.dev.toFixed(2):-1;})(),err:window.__err||''});
   draw();
   }
 }
