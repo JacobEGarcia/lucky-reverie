@@ -369,7 +369,7 @@ function genAhead(){
 }
 function reset(){
   rng=mulberry32(seedNum);
-  obstacles=[]; coinList=[]; parts=[]; fireflies=[]; jizoList=jizoX.map(x=>({x})); owlList=owlX.map(x=>({x,fly:-1})); S.dist=0; S.coins=0; S.bonus=0; S.bestFlag=+(localStorage.getItem('lr_bestd_'+seedStr)||0)*20; S.flagPassed=false; S.speed=290; S.t=0; S.camX=0; S.charm=false; S.charmGot=false; S.charmUsed=0; S.invuln=0; S.starT=-1; S.birdT=-1; S.geeseT=-1; S.kamiT=-1; S.wedT=-1; S.kaneT=-9; S.kaneN=0; S.spT=-1; S.kazaA=0; S.bathT=-1;
+  obstacles=[]; coinList=[]; parts=[]; fireflies=[]; jizoList=jizoX.map(x=>({x})); owlList=owlX.map(x=>({x,fly:-1})); S.dist=0; S.coins=0; S.bonus=0; S.bestFlag=+(localStorage.getItem('lr_bestd_'+seedStr)||0)*20; S.flagPassed=false; S.speed=290; S.t=0; S.camX=0; S.charm=false; S.charmGot=false; S.charmUsed=0; S.invuln=0; S.starT=-1; S.birdT=-1; S.geeseT=-1; S.kamiT=-1; S.wedT=-1; S.kaneT=-9; S.kaneN=0; S.spT=-1; S.kazaA=0; S.bathT=-1; S.gazeDone=false; S.gazeT=undefined; S.gazeK=0; S.runPh=0; S.effSpeed=290;
   nextObX=W*.8+200;
   cat.y=groundY(); cat.vy=0; cat.onGround=true; cat.jumps=0; cat.dead=0; cat.squash=0; S.complete=false; S.ceremT=0; S.hanabi=[];
   clouds=[]; for(let i=0;i<6;i++) clouds.push({x:Math.random()*W,y:20+Math.random()*H*.3,s:.6+Math.random()});
@@ -414,7 +414,22 @@ function update(dt){
   if(kaneOn&&S.kaneN<108&&S.t-S.kaneT>=9){ S.kaneN++; S.kaneT=S.t; tone(96,84,3.2,'sine',.045); tone(288,270,1.8,'sine',.014,.02); tone(578,560,.9,'sine',.007,.04); } // one strike of the hundred and eight
   if(kazaOn) S.kazaA+=dt*(1.5+(S.gust||0)*20); // the pinwheel turns with the air
   if(cat.onGround){ S.stepPh=(S.stepPh||0)+dt*S.speed*.011; const sn=Math.floor(S.stepPh); if(sn!==S.stepN){ S.stepN=sn; tone(sn%2?210:170,140,.035,'triangle',.012); } }
-  S.camX+=S.speed*dt; S.dist+=S.speed*dt*.05;
+  // the moon pause - passing a tsukimi offering in the season, she stops to watch; one per run, clear stretches only
+  { const gazePin=qs.get('gaze')!=null?+qs.get('gaze'):-1;
+    if(S.mode==='run'&&!S.gazeDone&&S.gazeT===undefined&&cat.onGround){
+      if(gazePin>=0&&S.t>=gazePin){ S.gazeT=S.t; }
+      else if(tsukimiOn){ const cxw=S.camX+cat.x;
+        for(const b of midline){ if(Math.abs(b.x-cxw)>400||!tsukimiPair(b)) continue;
+          const tr=mulberry32((seedNum^0x63f1)+Math.round(b.x)), exw=b.x+b.w*(.6+tr()*.22);
+          if(Math.abs(exw-cxw)<34&&!obstacles.some(o=>{ const ow=o.w||44; return o.x+ow>cxw-60&&o.x<cxw+Math.max(480,S.speed*.75); })){ S.gazeT=S.t; break; } } } }
+    if(S.gazeT!==undefined){ let ga=S.t-S.gazeT;
+      if(cat.buffer>0){ S.gazeT=S.t-3.6; cat.buffer=0; ga=3.6; } // a tap and she runs on
+      const ss=(a,b,x)=>{ const u=Math.min(1,Math.max(0,(x-a)/(b-a))); return u*u*(3-2*u); };
+      S.gazeK=ss(0,.9,ga)*(1-ss(3.6,4.5,ga));
+      if(ga>4.7){ S.gazeT=undefined; S.gazeK=0; S.gazeDone=true; } }
+    S.effSpeed=S.speed*(1-(S.gazeK||0));
+    S.runPh=(S.runPh||0)+S.effSpeed*dt*.045; }
+  S.camX+=S.effSpeed*dt; S.dist+=S.effSpeed*dt*.05;
   cat.x=W*.26;
   cat.vy+=1900*dt; cat.y+=cat.vy*dt;
   const gy=groundY();
@@ -1254,11 +1269,11 @@ function drawCat(){
   if(S.mode==='dying'||S.mode==='over') ctx.rotate(cat.spin||0);
   const sq=1+cat.squash;
   ctx.scale(1/Math.sqrt(Math.max(.6,sq)), Math.max(.6,sq));
-  drawCatPose(ctx);
+  { const gk=S.gazeK||0; if(gk>.75) drawGazePose(ctx); else if(gk>.25) drawTurnPose(ctx); else drawCatPose(ctx); }
   ctx.restore();
 }
 function drawCatPose(g){
-  const run=S.t*(S.speed*.045);
+  const run=S.runPh||0;
   const sw=cat.onGround?Math.sin(run):0;
   const air=!cat.onGround;
   const CREAM='#f3ead8', SHADE='#ddcda9', REDC='#9e2b1e';
@@ -1333,6 +1348,76 @@ function drawCatPose(g){
   g.beginPath(); g.moveTo(33.8,-59.5+pw); g.lineTo(34.2,-55.5+pw); g.stroke();
   g.beginPath(); g.moveTo(38.2,-59.5+pw); g.lineTo(37.8,-55.5+pw); g.stroke();
   g.globalAlpha=1;
+}
+
+function drawGazePose(g){
+  const CREAM='#f3ead8', SHADE='#ddcda9', REDC='#9e2b1e';
+  g.lineCap='round'; g.lineJoin='round';
+  const br=Math.sin(S.t*1.3)*.6; // a slow breath while she watches
+  g.strokeStyle=CREAM; g.lineWidth=8.5;
+  g.beginPath(); g.moveTo(-14,-26); g.quadraticCurveTo(-34,-20,-31,-7); g.quadraticCurveTo(-27,-1,-6,-3); g.stroke(); // tail curled around her feet
+  g.strokeStyle=GOLD; g.lineWidth=7;
+  g.beginPath(); g.moveTo(-7,-3); g.quadraticCurveTo(2,-1.5,9,-5+br*.5); g.stroke(); // its gold tip rests
+  g.fillStyle=SHADE; g.beginPath(); g.ellipse(-8,-12,12.5,9.5,0,0,7); g.fill(); // haunch
+  g.fillStyle=CREAM; g.beginPath(); g.ellipse(0,-24+br*.3,15.5,18.5,-.1,0,7); g.fill(); // sitting tall
+  g.strokeStyle=CREAM; g.lineWidth=7;
+  g.beginPath(); g.moveTo(8,-16); g.lineTo(10,-2); g.stroke();
+  g.beginPath(); g.moveTo(14,-15); g.lineTo(16,-2); g.stroke(); // front paws together
+  g.save(); g.translate(11,-48-br*.6); g.rotate(-.38); // head lifted to the moon
+  g.fillStyle=CREAM; g.beginPath(); g.arc(0,0,16.5,0,7); g.fill();
+  g.beginPath(); g.moveTo(-13,-6); g.quadraticCurveTo(-18,-16,-15,-22); g.quadraticCurveTo(-8,-16,-2,-11); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(8,-12); g.quadraticCurveTo(13,-21,18,-24); g.quadraticCurveTo(19,-15,14,-8); g.closePath(); g.fill();
+  g.fillStyle=REDC;
+  g.beginPath(); g.moveTo(-12,-8); g.quadraticCurveTo(-15,-15,-13.5,-18.5); g.quadraticCurveTo(-9,-14,-5.5,-11); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(10,-12.5); g.quadraticCurveTo(13.5,-18.5,16.5,-20.5); g.quadraticCurveTo(16.5,-14,13,-9.5); g.closePath(); g.fill();
+  g.fillStyle=INK; g.beginPath(); g.ellipse(7,-4,3.2,3.9,-.3,0,7); g.fill(); // the watching eye
+  g.fillStyle=GOLDL; g.beginPath(); g.arc(8,-5.6,1.15,0,7); g.fill(); // the moon caught in it
+  g.fillStyle=REDC; g.beginPath(); g.moveTo(14.5,1); g.lineTo(17.5,0); g.lineTo(15.8,2.6); g.closePath(); g.fill();
+  g.strokeStyle=INK; g.lineWidth=1.4;
+  g.beginPath(); g.moveTo(15.8,2.6); g.quadraticCurveTo(14.2,4.4,12.4,3.4); g.stroke();
+  g.globalAlpha=.5; g.lineWidth=1;
+  g.beginPath(); g.moveTo(-10,0); g.lineTo(-17,-2); g.stroke();
+  g.beginPath(); g.moveTo(-10,2.5); g.lineTo(-16,3.2); g.stroke();
+  g.globalAlpha=1;
+  g.strokeStyle=REDC; g.lineWidth=4.5;
+  g.beginPath(); g.moveTo(-8,12); g.quadraticCurveTo(2,16,12,11); g.stroke();
+  g.fillStyle=GOLD; g.beginPath(); g.arc(3,14.5,4.2,0,7); g.fill();
+  g.restore();
+}
+function drawTurnPose(g){
+  // the turn - still on her feet, the head already lifting
+  const CREAM='#f3ead8', SHADE='#ddcda9', REDC='#9e2b1e';
+  g.lineCap='round'; g.lineJoin='round';
+  g.strokeStyle=CREAM; g.lineWidth=8.5;
+  g.beginPath(); g.moveTo(-14,-30); g.quadraticCurveTo(-32,-26,-34,-36); g.stroke(); // the tail settling
+  g.strokeStyle=GOLD; g.lineWidth=7;
+  g.beginPath(); g.moveTo(-34,-36); g.quadraticCurveTo(-35,-44,-29,-47); g.stroke();
+  g.strokeStyle=SHADE; g.lineWidth=8;
+  g.beginPath(); g.moveTo(-7,-17); g.lineTo(-8,-2); g.stroke();
+  g.fillStyle=SHADE; g.beginPath(); g.ellipse(-7,-2,5,3.4,0,0,7); g.fill();
+  g.fillStyle=CREAM; g.beginPath(); g.ellipse(-1,-26,19,15,-.08,0,7); g.fill(); // body
+  g.strokeStyle=CREAM; g.lineWidth=8.5;
+  g.beginPath(); g.moveTo(9,-18); g.lineTo(10,-2); g.stroke();
+  g.fillStyle=CREAM; g.beginPath(); g.ellipse(11,-2,5,3.4,0,0,7); g.fill();
+  g.save(); g.translate(13,-47); g.rotate(-.18); // head half-lifted
+  g.fillStyle=CREAM; g.beginPath(); g.arc(0,0,17,0,7); g.fill();
+  g.beginPath(); g.moveTo(-13,-10); g.quadraticCurveTo(-17,-19,-15,-25); g.quadraticCurveTo(-9,-19,-4,-14); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(7,-14); g.quadraticCurveTo(12,-23,17,-26); g.quadraticCurveTo(18,-17,13,-10); g.closePath(); g.fill();
+  g.fillStyle=REDC;
+  g.beginPath(); g.moveTo(-12,-12); g.quadraticCurveTo(-14.5,-18,-13.5,-21); g.quadraticCurveTo(-9.5,-16.5,-6,-13.5); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(9,-14.5); g.quadraticCurveTo(12.5,-20.5,15.5,-22.5); g.quadraticCurveTo(15.5,-16,12,-11.5); g.closePath(); g.fill();
+  g.strokeStyle=INK; g.lineWidth=2; // eyes still closed, mid-turn
+  g.beginPath(); g.moveTo(-1,-4); g.quadraticCurveTo(3.5,-8.5,8,-4); g.stroke();
+  g.fillStyle=REDC; g.beginPath(); g.moveTo(13.5,1.5); g.lineTo(16.5,.5); g.lineTo(14.8,3.2); g.closePath(); g.fill();
+  g.strokeStyle=INK; g.lineWidth=1.4;
+  g.beginPath(); g.moveTo(14.8,3.2); g.quadraticCurveTo(13.2,5,11.4,4); g.stroke();
+  g.strokeStyle=REDC; g.lineWidth=4.5;
+  g.beginPath(); g.moveTo(-9,13); g.quadraticCurveTo(1,17,11,12); g.stroke();
+  g.fillStyle=GOLD; g.beginPath(); g.arc(2,15.5,4.2,0,7); g.fill();
+  g.restore();
+  g.strokeStyle=CREAM; g.lineWidth=8; // the paw coming down
+  g.beginPath(); g.moveTo(20,-34); g.quadraticCurveTo(30,-33,31,-26); g.stroke();
+  g.fillStyle=CREAM; g.beginPath(); g.arc(31,-24,5.8,0,7); g.fill();
 }
 
 // ---------------- hero mark + favicon ----------------
@@ -1580,7 +1665,7 @@ if(qs.get('qa')){
   if(qs.get('gate40')){ gates.push({x:S.camX+cat.x+(+(qs.get('gd')||180)), n:4000, hit:false}); for(let i=0;i<60;i++) update(1/60); }
   if(qs.get('tem')){ const r=18, off=parseFloat(qs.get('tem'))||460; obstacles.push({x:S.camX+cat.x+off, temari:true, r, w:r*2, h:r*2, roll:80, bps:1.05, ph:parseFloat(qs.get('tph'))||.4, cy:groundY()-r, rollA:0, near:false, passed:false});
     for(let i=0;i<26;i++) update(1/60); }
-  if(qs.get('probe')) document.title='PROBE '+JSON.stringify({mode:S.mode,dist:Math.round(S.dist),coins:S.coins,bonus:S.bonus,bells:S.bells||0,combo:coinCombo,charm:S.charm?1:0,charmUsed:S.charmUsed||0,star:starPin>=0?starPin:(S.starT>=0?+(S.t-S.starT).toFixed(2):-1),breath:(season==='winter'&&S.mode!=='start')?+(breathPin>=0?breathPin:(S.t%3.4)).toFixed(2):-1,bird:birdPin>=0?birdPin:(S.birdT>=0?+(S.t-S.birdT).toFixed(2):-1),dawn:+dawnK().toFixed(2),complete:S.complete?1:0,moon:+MP.toFixed(3),full:+fullK.toFixed(2),gust:+(S.gust||0).toFixed(2),constel:conOn?1:0,train:trainPin>=0?(trainPin<0?-1:trainPin):(S.trainT>=0?+(S.t-S.trainT).toFixed(2):-1),matsuri:matsuriOn?1:0,cho:midline.filter(choPair).length,mist:mistOn?1:0,hanabi:(S.hanabi||[]).length,shide:shideOn?1:0,kitsune:kitsuOn?1:0,geese:geesePin>=0?geesePin:(S.geeseT>=0?+(S.t-S.geeseT).toFixed(2):-1),kami:kamiPin>=0?kamiPin:(S.kamiT>=0?+(S.t-S.kamiT).toFixed(2):-1),fire:fireflies.length,prints:prints.length,jizo:jizoList.length,owl:owlList.filter(o=>o.fly<0).length,wed:wedOn?(wedPin>=0?wedPin:(S.wedT>=0?+(S.t-S.wedT).toFixed(2):-1)):0,haza:hazaOn?1:0,kaka:kakaOn?1:0,ksnow:ksnowOn?1:0,toshi:toshiOn?1:0,stair:stairOn?1:0,tsukimi:tsukimiOn?midline.filter(tsukimiPair).length:0,sp:(spPin!==null?spPin:(kakaOn&&dawnK()>.75))?(spFlyPin>=0?0:(S.spT<0?3:0)):0,frost:frostOn?1:0,kaza:kazaOn?+(S.kazaA||0).toFixed(1):-1,hoshi:midline.filter(hoshiPair).length,steam:midline.filter(steamPair).length,lone:loneOn?1:0,gink:ginkOn?1:0,asa:asaOn?1:0,noren:midline.filter(norenPair).length,drip:dripOn?1:0,bath:bathOn?(S.bathT<0?(season==='winter'&&dawnK()>.45?1:3):0):0,hazax:(hazaOn&&window.__hazaX!=null)?Math.round(window.__hazaX):-1,kane:kaneOn?(S.kaneN||0):-1,hinode:hinodeOn?1:0,darTum:(S.darTum||0),darDev:(()=>{const d=obstacles.find(o=>o.daruma&&o.tumble!==undefined); return d?+d.dev.toFixed(2):-1;})(),err:window.__err||''});
+  if(qs.get('probe')) document.title='PROBE '+JSON.stringify({mode:S.mode,dist:Math.round(S.dist),coins:S.coins,bonus:S.bonus,bells:S.bells||0,combo:coinCombo,charm:S.charm?1:0,charmUsed:S.charmUsed||0,star:starPin>=0?starPin:(S.starT>=0?+(S.t-S.starT).toFixed(2):-1),breath:(season==='winter'&&S.mode!=='start')?+(breathPin>=0?breathPin:(S.t%3.4)).toFixed(2):-1,bird:birdPin>=0?birdPin:(S.birdT>=0?+(S.t-S.birdT).toFixed(2):-1),dawn:+dawnK().toFixed(2),complete:S.complete?1:0,moon:+MP.toFixed(3),full:+fullK.toFixed(2),gust:+(S.gust||0).toFixed(2),constel:conOn?1:0,train:trainPin>=0?(trainPin<0?-1:trainPin):(S.trainT>=0?+(S.t-S.trainT).toFixed(2):-1),matsuri:matsuriOn?1:0,cho:midline.filter(choPair).length,mist:mistOn?1:0,hanabi:(S.hanabi||[]).length,shide:shideOn?1:0,kitsune:kitsuOn?1:0,geese:geesePin>=0?geesePin:(S.geeseT>=0?+(S.t-S.geeseT).toFixed(2):-1),kami:kamiPin>=0?kamiPin:(S.kamiT>=0?+(S.t-S.kamiT).toFixed(2):-1),fire:fireflies.length,prints:prints.length,jizo:jizoList.length,owl:owlList.filter(o=>o.fly<0).length,wed:wedOn?(wedPin>=0?wedPin:(S.wedT>=0?+(S.t-S.wedT).toFixed(2):-1)):0,haza:hazaOn?1:0,kaka:kakaOn?1:0,ksnow:ksnowOn?1:0,toshi:toshiOn?1:0,stair:stairOn?1:0,tsukimi:tsukimiOn?midline.filter(tsukimiPair).length:0,gaze:+((S.gazeK)||0).toFixed(2),gazeDone:(S.gazeDone?1:0),sp:(spPin!==null?spPin:(kakaOn&&dawnK()>.75))?(spFlyPin>=0?0:(S.spT<0?3:0)):0,frost:frostOn?1:0,kaza:kazaOn?+(S.kazaA||0).toFixed(1):-1,hoshi:midline.filter(hoshiPair).length,steam:midline.filter(steamPair).length,lone:loneOn?1:0,gink:ginkOn?1:0,asa:asaOn?1:0,noren:midline.filter(norenPair).length,drip:dripOn?1:0,bath:bathOn?(S.bathT<0?(season==='winter'&&dawnK()>.45?1:3):0):0,hazax:(hazaOn&&window.__hazaX!=null)?Math.round(window.__hazaX):-1,kane:kaneOn?(S.kaneN||0):-1,hinode:hinodeOn?1:0,darTum:(S.darTum||0),darDev:(()=>{const d=obstacles.find(o=>o.daruma&&o.tumble!==undefined); return d?+d.dev.toFixed(2):-1;})(),err:window.__err||''});
   draw();
   }
 }
